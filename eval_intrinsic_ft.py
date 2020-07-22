@@ -15,9 +15,9 @@ if __name__ == '__main__':
                         help='Path to a pre-trained embeddings vec file')
     args = parser.parse_args()
 
-    ds = ['UMNSRS-sim-mod', 'UMNSRS-rel-mod', 'MayoSRS']
-    ds = ['UMNSRS-sim-mod', 'UMNSRS-rel-mod', 'MayoSRS',
-          'MiniMayoSRS-p', 'MiniMayoSRS-c',
+    ds = ['UMNSRS-sim', 'UMNSRS-rel',
+          'UMNSRS-sim-mod', 'UMNSRS-rel-mod',
+          'MayoSRS', 'MiniMayoSRS-p', 'MiniMayoSRS-c',
           'Pedersen-p', 'Pedersen-c', 'Hliaoutakis']
 
     # Logger
@@ -28,7 +28,6 @@ if __name__ == '__main__':
     )
 
     # Load evaluator
-    evaluator = EmbEvaluator(eval_sets=ds, eval_dir='data/eval/',
-                             wv_=args.wv_file)
+    evaluator = EmbEvaluator(args.wv_file)
     evaluator.eval()
     # code.interact(local=locals())

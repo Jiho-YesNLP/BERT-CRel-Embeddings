@@ -2,7 +2,8 @@
 
 normalize_text() {
   tr '[:upper:]' '[:lower:]' | \
-    sed -e "s/'/ ' /g" -e 's/"//g' -e 's/\./ \. /g' \
+    sed -e "s/'/ ' /g" -e 's/"//g' -e 's/\./ \. /g' -e 's/-/ - /g' \
+        -e 's/\// \/ /g' -e 's/\[/ [ /g' -e 's/\]/ ] /g' \
         -e 's/,/ , /g' -e 's/(/ ( /g' -e 's/)/ ) /g' -e 's/\!/ \! /g' \
         -e 's/\?/ \? /g' -e 's/\;/ /g' -e 's/\:/ /g' | tr -s " "
 }

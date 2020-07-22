@@ -1,0 +1,12 @@
+data/*
+!data/eval
+data/eval/*
+!data/eval/*.csv
+doc/
+.idea/
+.DS_Store/
+.vim/
+__pycache__/
+*.code-workspace
+.vscode/
+*.plot

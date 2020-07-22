@@ -1,157 +1,139 @@
 """train.py
 
-Fine-tune embeddings in simple relevancy classification tasks of MeSH concepts
+Fine-tune embeddings in a simple relevance classification task with MeSH concepts
 """
-import argparse
-import logging
 import code
+import logging
+import random
+import pickle
 
-from lxml import etree
-
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from transformers import AdamW
+from transformers import AdamW, get_linear_schedule_with_warmup
 
-from BMET.model import MeshRelClassifier
+import BMET.config as cfg
 from BMET.data import MeshPairDataset, batchify
-from BMET.utils import WvModel, TrainingStats
+from BMET.utils import MeSHTree, TrainingLogs, generate_examples
+from BMET.vocab import WvModel
 from BMET.eval import EmbEvaluator
+from BMET.model import MeshRelClassifier
+
 
 logger = logging.getLogger(__name__)
 
-
 def set_defaults():
-    """Set default configurations"""
-    args.use_cuda = torch.cuda.is_available()
-    args.device = torch.device('cuda' if args.use_cuda else 'cpu')
+    # Random seed
+    random.seed(cfg.RSEED)
+    np.random.seed(cfg.RSEED)
+    torch.manual_seed(cfg.RSEED)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
-def train(args, tr_ds, vl_ds, mdl, optim, sch, stats):
+def train(ds, mdl, optim, sch, stats, evaluator):
     mdl.train()
-    validity = [0, 0]
-    we = mdl.bert.bert.embeddings.word_embeddings
-    for batch in DataLoader(tr_ds, batch_size=args.batch_size,
-                            collate_fn=batchify):
+    # we = mdl.bert.bert.embeddings.word_embeddings
+    trn_it = DataLoader(ds['trn'], batch_size=cfg.BSZ, shuffle=True,
+                          collate_fn=batchify)
+    for batch in trn_it:
         optim.zero_grad()
         loss, logits = mdl(batch)
-        validity[0] += args.batch_size
-        validity[1] += (logits.argmax(1) ^ batch[0]).sum().item()
         loss.backward()
         optim.step()
-        nn.utils.clip_grad_norm_(mdl.parameters(), 10)
+        nn.utils.clip_grad_norm_(mdl.parameters(), 8)
         stats.update('train', loss.item())
-        if stats.steps == 0:
-            continue
-        if stats.steps % args.log_interval == 0:
-            print(validity)
-            validity = [0, 0]
-            stats.lr = optimizer.param_groups[0]['lr']
-            if stats.is_emb_frozen and stats.steps > 10000:
-                stats.is_emb_frozen = False
-                for param in we[1].parameters():
-                    param.requires_grad = True
 
-            loss_ = stats.report_tr()
+        # Log
+        if stats.steps % cfg.LOG_INTERVAL == 0:
+            stats.lr = optim.param_groups[0]['lr']
+            loss_ = stats.report_trn()
+            # Step to next annealing stage
+            if (mdl.is_emb_frozen and stats.lr <= cfg.MIN_LR) or\
+                    stats.lr <= cfg.MIN_LR_FT:
+                stats.stage += 1
+                if mdl.is_emb_frozen:
+                    mdl.unfreeze_embs()
+                    sch.min_lrs = [cfg.MIN_LR_FT]
+                    optim.param_groups[0]['lr'] = cfg.LR_FT
+                else:
+                    mdl.next_annealing_stage()
+                    optim.param_groups[0]['lr'] = cfg.MIN_LR_FT + \
+                        + (cfg.LR_FT - cfg.MIN_LR_FT) * .9**stats.stage
+        if stats.steps % cfg.VAL_INTERVAL == 0:
+            loss_ = validate(ds['val'], mdl, stats)
             sch.step(loss_)
-            evaluator.eval_in_loop(we)
-        if stats.steps % args.eval_interval == 0:
-            validate(args, vl_ds, mdl, stats)
+            # Benchmark
+            if not mdl.is_emb_frozen:
+                corr = evaluator.eval(we=mdl.we,
+                                      rtn_corr=['UMNSRS-sim', 'UMNSRS-rel',
+                                                'MayoSRS'])
+            else:
+                corr = -1.
+            if corr > stats.best_intr_score:
+                mdl.save_model(cfg.F_OUT, update_emb=True)
+                stats.best_intr_score = corr
 
-
-def validate(args, ds, mdl, stats):
-    mdl.eval()
-    # it = DataLoader(ds, batch_size=args.batch_size, sampler=RandomSampler(ds),
-    it = DataLoader(ds, batch_size=args.batch_size, collate_fn=batchify)
-    for i, batch in enumerate(it):
-        loss, logits = mdl(batch)
-        stats.update('valid', loss.item())
-        if len(stats.valid_loss) > 10000:
-            stats.report_vl()
-            break
-    mdl.train()
-
+def validate(val_ds, mdl, stats):
+    val_it = DataLoader(val_ds, batch_size=cfg.BSZ, shuffle=True, collate_fn=batchify)
+    with torch.no_grad():
+        mdl.eval()
+        for i, batch in enumerate(val_it):
+            loss, _ = mdl(batch)
+            stats.update('valid', loss.item())
+            if i > cfg.VAL_MAX_STEPS:
+                avg_loss = stats.report_val()
+                return avg_loss
 
 if __name__ == '__main__':
-    # Configuration -----------------------------------------------------------
-    parser = argparse.ArgumentParser(
-        'Fine-tuning BMET embeddings for relationships between MeSH concepts',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    # Runtime environmnet
-    runtime = parser.add_argument_group('Environment')
-    runtime.add_argument('--debug', action='store_true',
-                         help='Run in debug mode (= verbose)')
-    runtime.add_argument('--epochs', type=int, default=5,
-                         help='Number of epochs to train')
-    runtime.add_argument('--log_interval', type=int, default=200,
-                         help='Log interval for training')
-    runtime.add_argument('--eval_interval', type=int, default=10000,
-                         help='Log interval for validation')
-    mdl = parser.add_argument_group('Model Configuration')
-    mdl.add_argument('--mdl_dim', type=int, default=396,
-                     help='BERT model hidden_size; dim of word embeddings '
-                     'should be consistent with this')
-    mdl.add_argument('--vocab_size', type=int, default=200000,
-                     help='Number of words in pretrained vocabulary')
-    mdl.add_argument('--batch_size', type=int, default=16,
-                     help='Number of examples in running train/valid steps')
-    mdl.add_argument('--lr', type=float, default=5e-5,
-                     help='Learning rate')
-    args = parser.parse_args()
-
     # Logger
-    log_lvl = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(
-        level=log_lvl,
+        level=cfg.LOGGING_MODE,
         format='%(asctime)s %(name)s %(levelname)s: [ %(message)s ]',
-        datefmt='%b%d %H:%M'
+        datefmt='%b%d %H:%M',
+        handlers=[logging.FileHandler('train.log'),
+                  logging.StreamHandler()]
     )
 
-    # Default settings --------------------------------------------------------
+    # Configuration
     set_defaults()
-    mesh_file = 'data/mesh/desc2020.xml'
-    exs_file = 'data/models/BMET-toy.vec'
-    exs_file = 'data/models/BMET-ft-06337.vec'
 
-    # Read MeSH definitions
-    mesh_dict = dict()
-    data = etree.parse(open(mesh_file))
-    for rec in data.getiterator('DescriptorRecord'):
-        ui = rec.find('DescriptorUI').text
-        name = rec.find('DescriptorName/String').text
-        note_elm = rec.find('ConceptList/Concept/ScopeNote')
-        note = note_elm.text.strip() if note_elm is not None else ''
-        mesh_dict[ui] = {'name': name, 'note': note}
-    del(data)
-    # Read pre-trained WvModel
-    vocab = WvModel(exs_file, vocab_size=args.vocab_size, dim=args.mdl_dim)
-    evaluator = EmbEvaluator(['UMNSRS-sim-mod', 'UMNSRS-rel-mod'],
-                             eval_dir='data/eval/', wv_=vocab)
+    # Read MeSH descriptors
+    logger.info('Reading MeSH tree structure...')
+    msh_tr = MeSHTree(cfg.F_MESH)
 
-    # Model -------------------------------------------------------------------
-    model = MeshRelClassifier(vocab)
-    model.to(args.device)
-    # criterion = nn.BCELoss(reduction='none')
-    optimizer = AdamW(model.parameters(), lr=args.lr)
-    scheduler = ReduceLROnPlateau(optimizer, patience=10, factor=0.8,
-                                  min_lr=5e-6)
+    # Load pretrained static embeddings
+    embs = WvModel(cfg.F_WV_EMBS)
+    evaluator = EmbEvaluator(embs, eval_sets=['UMNSRS-sim', 'UMNSRS-rel'])
+    # Read training dataset
+    logger.info('Loading examples from %s...', cfg.F_DATA)
+    exs = generate_examples(cfg.F_DATA)
+    ds = {k: MeshPairDataset(exs, msh_tr, embs, mode=k)
+          for k in ['trn', 'val']}
 
-    # Read training datasets
-    train_ds = MeshPairDataset('data/bmet-mt.train', mesh_dict, vocab)
-    valid_ds = MeshPairDataset('data/bmet-mt.valid', mesh_dict, vocab)
+    # Model
+    # -------------------------------------------------------------------
+    model = MeshRelClassifier(embs)
+    model.to(cfg.DEVICE)
+    optimizer = AdamW(
+        [p for n, p in model.named_parameters()
+         if not n.startswith('bert.bert.embeddings.word_embeddings[0]')],
+        lr=cfg.LR
+    )
 
-    # Train -------------------------------------------------------------------
-    logger.info('Start training REL model')
-    model.train()
-    stats = TrainingStats()
-    try:
-        for epoch in range(1, args.epochs + 1):
-            stats.epoch = epoch
-            logger.info('*** Epoch {} ***'.format(epoch))
-            train(args, train_ds, valid_ds, model, optimizer, scheduler, stats)
+    # num_training_steps = int(len(ds['trn']) / cfg.BSZ) * cfg.EPOCHS
+    # num_warmup_steps = int(num_training_steps * 0.05)
+    # sch = get_linear_schedule_with_warmup(optimizer,
+    #                                       num_warmup_steps,
+    #                                       num_training_steps)
+    sch = ReduceLROnPlateau(optimizer, patience=cfg.SCH_PATIENCE,
+                            factor=cfg.SCH_FACTOR, min_lr=cfg.MIN_LR,
+                            verbose=True)
+    running_stats = TrainingLogs()
 
-            break
-    except KeyboardInterrupt:
-        code.interact(local=locals())
+    for epoch in range(1, cfg.EPOCHS + 1):
+        running_stats.epoch = epoch
+        logger.info('*** Epoch %s ***', epoch)
+        train(ds, model, optimizer, sch, running_stats, evaluator)

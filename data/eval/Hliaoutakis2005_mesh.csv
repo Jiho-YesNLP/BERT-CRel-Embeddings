@@ -1,0 +1,37 @@
+term 1,term 2,mesh 1,mesh 2,score
+Anemia,Appendicitis,D000740,D001064,0.031
+Dementia,Atopic Dermatitis,D003704,D003876,0.062
+Bacterial Pneumonia,Malaria,D018410,D008288,0.156
+Osteoporosis,Patent Ductus Arteriosus,D010024,D004374,0.156
+Amino Acid Sequence,AntiBacterial Agents,D000595,D000900,0.156
+Acquired Immunodeficiency Syndrome,Congenital Heart Defects,D000163,D006330,0.062
+Otitis Media,Infantile Colic,D010033,D003085,0.156
+Meningitis,Tricuspid Atresia,D008581,D018785,0.031
+Sinusitis,Mental Retardation,D012852,D008607,0.031
+Hypertension,Kidney Failure,D006973,D051437,0.5
+Hyperlipidemia,Hyperkalemia,D006949,D006947,0.156
+Hypothyroidism,Hyperthyroidism,D007037,D006980,0.406
+Sarcoidosis,Tuberculosis,D012507,D014376,0.406
+Vaccines,Immunity,D014612,D007109,0.593
+Asthma,Pneumonia,D001249,D011014,0.375
+Diabetic Nephropathy,Diabetes Mellitus,D003928,D003920,0.5
+Lactose Intolerance,Irritable Bowel Syndrome,D007787,D043183,0.468
+Urinary Tract Infection,Pyelonephritis,D014552,D011704,0.656
+Neonatal Jaundice,Sepsis,D007567,D018805,0.187
+Sickle Cell Anemia,Iron Deficiency Anemia,D000755,C562385,0.437
+Psychology,Cognitive Science,D011584,D019336,0.593
+Adenovirus,Rotavirus,D000256,D012401,0.437
+Migraine,Headache,D008881,D006261,0.718
+Myocardial Ischemia,Myocardial Infarction,D017202,D009203,0.75
+Hepatitis B,Hepatitis C,D006509,D006526,0.562
+Carcinoma,Neoplasm,D002277,D009369,0.75
+Pulmonary Valve Stenosis,Aortic Valve Stenosis,D011666,D001024,0.531
+Failure to Thrive,Malnutrition,D005183,D044342,0.625
+Breast Feeding,Lactation,D001942,D007774,0.843
+Antibiotics,Antibacterial Agents,D000900,D000900,0.937
+Seizures,Convulsions,D012640,D012640,0.843
+Pain,Ache,D010146,D010146,0.875
+Malnutrition,Nutritional Deficiency,D044342,D044342,0.875
+Measles,Rubeola,D008457,D008457,0.906
+Chicken Pox,Varicella,D002644,D002644,0.968
+Down Syndrome,Trisomy 21,D004314,D004314,0.875

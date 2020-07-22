@@ -1,0 +1,31 @@
+Term 1,Term 2,MeSH 1,MeSH 2,Physician,Coder
+Renal failure,Kidney failure,D051437,D051437,4,4
+Heart,Myocardium,D006321,D009206,3.3,3
+Stroke,Infarct,D020521,D007238,3,2.8
+Abortion,Miscarriage,D000028,D000022,3,3.3
+Delusion,Schizophrenia,D003702,D012559,3,2.2
+Congestive heart failure,Pulmonary edema,D006333,D011654,3,1.4
+Metastasis,Adenocarcinoma,D009362,D000230,2.7,1.8
+Calcification,Stenosis,D002113,D003251,2.7,2
+Diarrhea,Stomach cramps,D003967,D009120,2.3,1.3
+Mitral stenosis,Atrial fibrillation,D008946,D001281,2.3,1.3
+Chronic obstructive pulmonary disease,Lung infiltrates,D029424,D055371,2.3,1.9
+Rheumatoid arthritis,Lupus,D001172,D008180,2,1.1
+Brain tumor,Intracranial hemorrhage,D001932,D020300,2,1.3
+Carpel tunnel syndrome,Osteoarthritis,D002349,D010003,2,1.1
+Diabetes mellitus,Hypertension,D003920,D006973,2,1
+Acne,Syringe,D000152,D013594,2,1
+Antibiotic,Allergy,D000900,D000486,1.7,1.2
+Cortisone,Total knee replacement,D003348,D019645,1.7,1
+Pulmonary embolus,Myocardial infarction,D011655,D009203,1.7,1.2
+Pulmonary fibrosis,Lung cancer,D011658,D008175,1.7,1.4
+Cholangiocarcinoma,Colonoscopy,D018281,D003113,1.3,1
+Lymphoid hyperplasia,Laryngeal cancer,D005871,D007822,1.3,1
+Multiple sclerosis,Psychosis,D009103,D011618,1,1
+Appendicitis,Osteoporosis,D001064,D015663,1,1
+Rectal polyp,Aorta,D003111,D001011,1,1
+Xerostomia,Alcoholic cirrhosis,D014987,D008104,1,1
+Peptic ulcer disease,Myopia,D010437,D009216,1,1
+Depression,Cellulites,D003863,D000071697,1,1
+Varicose vein,Entire knee meniscus,D014648,D000072600,1,1
+Hyperlipidemia,Metastasis,D006949,D009362,1,1
