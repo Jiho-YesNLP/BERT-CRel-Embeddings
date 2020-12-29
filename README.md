@@ -13,3 +13,14 @@ These files contain only MeSH code embeddings. (vocabulary size is 45,015)
 **BERT-CRel-words**
 
 These files contain only English word embeddings. (vocabulary size is 288,281) 
+
+If you use our embeddings or find this code relevant or useful in any manner, please consider citing this paper:
+
+```
+@article{noh2020improved,
+  title={Improved Biomedical Word Embeddings in the Transformer Era},
+  author={Noh, Jiho and Kavuluru, Ramakanth},
+  journal={arXiv preprint arXiv:2012.11808},
+  year={2020}
+}
+```
